@@ -263,13 +263,13 @@ class GeneratorGlobal(nn.Module):
         img32 = self.img32(reconstruct_32) #Output: [bs, 3, 32, 32]
         
         decode_64 = self.decode_64(torch.cat((conv1, feat64, I_P_64), 1))
-        reconstruct_64 = self.reconstruct_64(torch.cat((deconv2_64, decode_64,                                                        F.interpolate(img32.data, (64,64),                                                                      mode='bilinear', align_corners=False)), 1))
+        reconstruct_64 = self.reconstruct_64(torch.cat((deconv2_64, decode_64, F.interpolate(img32.data, (64,64), mode='bilinear', align_corners=False)), 1))
         deconv3_128 = self.deconv3_128(reconstruct_64) #Output: [bs, 64, 128, 128]
         img64 = self.img64(reconstruct_64) #Output: [bs, 3, 64, 64]
         
         decode_128 = self.decode_128(torch.cat((conv0, feat128, I_P_128), 1))
         #Concatenated eyel, eyer, nose, mouth, c_eyel, c_eyer, c_nose, c_mouth
-        reconstruct_128 = self.reconstruct_128(torch.cat((deconv3_128, decode_128,                                                        F.interpolate(img64.data, (128,128),                                                                      mode='bilinear', align_corners=False),                                                          local_feature, local_predict), 1)) 
+        reconstruct_128 = self.reconstruct_128(torch.cat((deconv3_128, decode_128, F.interpolate(img64.data, (128,128), mode='bilinear', align_corners=False), local_feature, local_predict), 1)) 
         conv5 = self.conv5(reconstruct_128) #Output: [bs, 64, 128, 128]
         
         conv6 = self.conv6(conv5) #Output: [bs, 32, 128, 128]
@@ -444,11 +444,10 @@ class Generator(nn.Module):
         local_GT = self.fuser(leye, reye, nose, mouth)
         
         #Global Path
-        fake_img128, fake_img64, fake_img32, fc2 = self.globalpath(img128, img64, img32, 
-                                                                   local_fake, local_features, noise)
+        fake_img128, fake_img64, fake_img32, fc2 = self.globalpath(img128, img64, img32, local_fake, local_features, noise)
         encoder_predict = self.feature_predict(fc2)
         
-        return fake_img128, fake_img64, fake_img32, encoder_predict,                 local_fake, fake_leye, fake_reye, fake_nose, fake_mouth, local_GT
+        return fake_img128, fake_img64, fake_img32, encoder_predict, local_fake, fake_leye, fake_reye, fake_nose, fake_mouth, local_GT
 
 
 
@@ -498,3 +497,4 @@ class Discriminator(nn.Module):
         x = self.conv5(x)
         
         return x
+    
