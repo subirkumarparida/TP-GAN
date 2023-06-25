@@ -1,0 +1,202 @@
+import os
+#import cv2
+import math
+import time
+import tqdm
+import yaml
+#import tarfile
+#import numbers
+#import threading
+#import queue as Queue
+import numpy as np
+import pandas as pd
+from PIL import Image
+from random import random
+import matplotlib
+from matplotlib import cm
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+
+import torch
+import torchvision
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torchvision import transforms
+from torchvision.utils import save_image
+from torchvision.datasets import ImageFolder
+from torchvision.datasets.utils import download_url
+from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import random_split, DataLoader, Dataset, TensorDataset
+from torchsummary import summary
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+random_seed = 42
+torch.manual_seed(random_seed);
+
+torch.set_printoptions(edgeitems=5)
+
+from dataset import *
+from network import *
+from loss import *
+from helper_func import *
+
+def get_default_device():
+    """Pick GPU if available, else CPU"""
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    else:
+        return torch.device('cpu')
+
+
+def to_device(data, device):
+    """Move tensor(s) to chosen device"""
+    if isinstance(data, (list, tuple)):
+        return [to_device(x, device) for x in data]
+    return data.to(device, non_blocking=True)  # , dtype=torch.float
+
+
+class DeviceDataLoader():
+    """Wrap a dataloader to move data to a device"""
+
+    def __init__(self, dl, device):
+        self.dl = dl
+        self.device = device
+
+    def __iter__(self):
+        """Yield a batch of data after moving it to device"""
+        for b in self.dl:
+            yield to_device(b, self.device)
+
+    def __len__(self):
+        """Number of batches"""
+        return len(self.dl)
+
+device = get_default_device()
+
+yml_file = "mydata.yml"
+data_dir = "all_data2"
+
+root_dir = '/home/barc/Desktop/subir/Projects/TP-GAN'
+
+images_list = os.path.join(root_dir, yml_file)
+images_dir = os.path.join(root_dir, data_dir)
+
+save_dir = "generated_data"
+images_save_dir = os.path.join(root_dir, save_dir)
+
+dataset = createDataset(images_list, images_dir)
+
+train_dl = DataLoader(dataset, batch_size=34, shuffle=False, num_workers=4, pin_memory=True)
+#train_dl = DeviceDataLoader(train_ds, device)
+#len(train_dl)
+#test_dl =
+
+G = Generator(num_classes=10)
+to_device(G, device)
+
+D = Discriminator()
+to_device(D, device)
+
+loss_G = G_Loss()
+loss_D = D_Loss()
+
+
+def train_discriminator(D, loss_D, opt_d, img128_fake, inputs):
+    # Clear discriminator gradients
+    opt_d.zero_grad()
+
+    # Calculate loss
+    loss_d = loss_D(D, img128_fake, inputs)
+
+    # Update discriminator weights
+    loss_d.backward()
+    opt_d.step()
+    return loss_d.item()
+
+
+def train_generator(D, G, loss_G, opt_g, img128_fake, img64_fake, img32_fake, inputs):
+    # Clear generator gradients
+    opt_g.zero_grad()
+
+    # Calculate loss
+    loss_g = loss_G(G, D, img128_fake, img64_fake, img32_fake, inputs)
+
+    # Update generator weights
+    loss_g.backward()
+    opt_g.step()
+
+    return loss_g.item()
+
+
+def fit(epochs, G, D, loss_G, loss_D, train_dl, opt_fn=None, lr=None, lr_func=None):
+    torch.cuda.empty_cache()
+
+    train_G_losses, train_D_losses = [], []
+
+    # instantiate the optimizer
+    if opt_fn is None: opt_fn = torch.optim.Adam
+    opt_G = opt_fn(G.parameters(), lr=1e-4)
+    opt_D = opt_fn(D.parameters(), lr=1e-4)
+
+    # scheduler_network = torch.optim.lr_scheduler.LambdaLR(optimizer=opt, lr_lambda=lr_func)
+
+    for epoch in range(epochs):
+        ep_train_g_losses, ep_train_d_losses, train_len = [], [], []
+
+        # Training
+        G.train()
+        D.train()
+        for batch in tqdm.tqdm(train_dl):
+            # Generate predictions
+            img128_fake, img64_fake, img32_fake = G(batch['img128'], batch['img64'], batch['img32'])
+
+            train_d_loss = train_discriminator(D, loss_D, opt_D, img128_fake, batch)
+            train_g_loss = train_generator(D, G, loss_G, opt_G, img128_fake, img64_fake, img32_fake, inputs)
+            len_batch = len(batch)
+
+            ep_train_g_losses.append(train_g_loss)
+            ep_train_d_losses.append(train_d_loss)
+            train_len.append(len_batch)  # batch_size
+
+        # scheduler_network.step()
+        # scheduler_out.step()
+
+        total = np.sum(train_len)
+        avg_g_train_loss = np.sum(np.multiply(ep_train_g_losses, train_len)) / total
+        avg_d_train_loss = np.sum(np.multiply(ep_train_d_losses, train_len)) / total
+
+        # Evaluation
+
+        # Record the loss
+        train_G_losses.append(avg_g_train_loss)
+        train_D_losses.append(avg_d_train_loss)
+
+        # Checkpointing the model - saving every 'n' epochs
+        checkpoint_path = "Checkpoints/model_" + str(epoch + 1) + ".pt"
+
+        if ((epoch) % 5 == 0):
+            torch.save({
+                'epoch': epoch + 1,
+                'G_state_dict': G.state_dict(),
+                'D_state_dict': D.state_dict(),
+                'g_train_loss': avg_g_train_loss,
+                'd_train_loss': avg_d_train_loss,
+            }, checkpoint_path)
+
+        # Print progress:
+        print('Epoch [{}/{}], Train_G_loss: {:.4f}, Train_D_loss: {:.4f}'
+              .format(epoch + 1, epochs, avg_g_train_loss, avg_d_train_loss))
+
+        save_samples(epoch + 1, G, train_dl, show=False)
+
+    return train_G_losses, train_D_losses
+
+num_epochs = 500
+lr = 0.01
+opt_func = torch.optim.Adam
+
+history = fit(epochs=num_epochs, G=G, D=D, loss_G=loss_G, loss_D=loss_D,
+              train_dl=train_dl, opt_fn=opt_func, lr=lr)
