@@ -31,6 +31,12 @@ from torch.utils.data import random_split, DataLoader, Dataset, TensorDataset
 from torchsummary import summary
 
 
+root_dir = '/home/barc/Desktop/subir/Projects/TP-GAN'
+
+save_dir = "generated_data"
+images_save_dir = os.path.join(root_dir, save_dir)
+
+
 def save_samples(index, G, data_dl, show=False):
     for each_batch in data_dl:
         #img1 = torch.permute(each_batch['img128'][0], (1, 2, 0))
@@ -51,7 +57,8 @@ def save_samples(index, G, data_dl, show=False):
             #print(new_pair.shape)
             #print(img128_fake.shape)
             
-            fake_fname = 'generated-frontal-ep={0:0=4d}_id={0:0=3d}.png'.format(index, each_batch['id'][0].item())
+            #fake_fname = 'generated-frontal-ep={0:0=4d}_id={0:0=3d}.png'.format(index, each_batch['id'][0].item())
+            fake_fname = 'generated-frontal-ep={0:0=4d}.png'.format(index)
             save_image(new_pair, os.path.join(images_save_dir, fake_fname))
             
             #print('Saving', fake_fname)

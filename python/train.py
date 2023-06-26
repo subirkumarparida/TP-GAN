@@ -76,8 +76,8 @@ class DeviceDataLoader():
 
 device = get_default_device()
 
-yml_file = "mydata.yml"
-data_dir = "all_data2"
+yml_file = "data.yml"
+data_dir = "all_data"
 
 root_dir = '/home/barc/Desktop/subir/Projects/TP-GAN'
 
@@ -89,7 +89,7 @@ images_save_dir = os.path.join(root_dir, save_dir)
 
 dataset = createDataset(images_list, images_dir)
 
-train_dl = DataLoader(dataset, batch_size=34, shuffle=False, num_workers=4, pin_memory=True)
+train_dl = DataLoader(dataset, batch_size=34, shuffle=True, num_workers=4, pin_memory=True)
 #train_dl = DeviceDataLoader(train_ds, device)
 #len(train_dl)
 #test_dl =
@@ -154,7 +154,7 @@ def fit(epochs, G, D, loss_G, loss_D, train_dl, opt_fn=None, lr=None, lr_func=No
             img128_fake, img64_fake, img32_fake = G(batch['img128'], batch['img64'], batch['img32'])
 
             train_d_loss = train_discriminator(D, loss_D, opt_D, img128_fake, batch)
-            train_g_loss = train_generator(D, G, loss_G, opt_G, img128_fake, img64_fake, img32_fake, inputs)
+            train_g_loss = train_generator(D, G, loss_G, opt_G, img128_fake, img64_fake, img32_fake, batch)
             len_batch = len(batch)
 
             ep_train_g_losses.append(train_g_loss)
@@ -175,7 +175,7 @@ def fit(epochs, G, D, loss_G, loss_D, train_dl, opt_fn=None, lr=None, lr_func=No
         train_D_losses.append(avg_d_train_loss)
 
         # Checkpointing the model - saving every 'n' epochs
-        checkpoint_path = "Checkpoints/model_" + str(epoch + 1) + ".pt"
+        checkpoint_path = "../Checkpoints/model_" + str(epoch + 1) + ".pt"
 
         if ((epoch) % 5 == 0):
             torch.save({
@@ -194,9 +194,26 @@ def fit(epochs, G, D, loss_G, loss_D, train_dl, opt_fn=None, lr=None, lr_func=No
 
     return train_G_losses, train_D_losses
 
-num_epochs = 500
+num_epochs = 2
 lr = 0.01
 opt_func = torch.optim.Adam
 
 history = fit(epochs=num_epochs, G=G, D=D, loss_G=loss_G, loss_D=loss_D,
               train_dl=train_dl, opt_fn=opt_func, lr=lr)
+              
+losses_g, losses_d = history
+
+
+def plot_losses(losses_d, losses_g):
+    plt.plot(losses_d[0:100], '-')
+    plt.plot(losses_g[0:100], '-')
+
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.legend(['Discriminator', 'Generator'])
+    plt.tick_params(labelcolor='g')
+
+    plt.title('Loss vs. No. of epochs')
+    plt.show()
+
+plot_losses(losses_d, losses_g)

@@ -56,11 +56,17 @@ for d in dataset:
     id = d['id']
     if id not in ids:
         ids.append(id)
+        
+        img1 = torch.permute(d['img128'], (1, 2, 0))
+        img2 = torch.permute(d['img128_GT'], (1, 2, 0))
 
-        img1 = torch.permute(d['img128_GT'], (1, 2, 0))
-        img2 = torch.permute(d['img128'], (1, 2, 0))
+        img1 = (img1*127)+127.5
+        img1 = img1.type(torch.int64)
+        
+        img2 = (img2*127)+127.5
+        img2 = img2.type(torch.int64)
 
-        # Normalized image
+        #Normalized image
         plt.subplot(1, 2, 1)
         plt.imshow(img1)
         plt.axis('off')
