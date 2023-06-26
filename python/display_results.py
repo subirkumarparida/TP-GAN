@@ -35,51 +35,16 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 from dataset import *
+from helper_func import *
 from network import *
 
 
-def get_default_device():
-    """Pick GPU if available, else CPU"""
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')
-
-def to_device(data, device):
-    """Move tensor(s) to chosen device"""
-    if isinstance(data, (list, tuple)):
-        return [to_device(x, device) for x in data]
-    return data.to(device, non_blocking=True)  # , dtype=torch.float
-
-class DeviceDataLoader():
-    """Wrap a dataloader to move data to a device"""
-
-    def __init__(self, dl, device):
-        self.dl = dl
-        self.device = device
-
-    def __iter__(self):
-        """Yield a batch of data after moving it to device"""
-        for b in self.dl:
-            yield to_device(b, self.device)
-
-    def __len__(self):
-        """Number of batches"""
-        return len(self.dl)
-
 device = get_default_device()
 
-yml_file = "data.yml"
-data_dir = "all_data"
-
-root_dir = '/home/barc/Desktop/subir/Projects/TP-GAN'
-
-images_list = os.path.join(root_dir, yml_file)
-images_dir = os.path.join(root_dir, data_dir)
 
 dataset = createDataset(images_list, images_dir)
 
-train_dl = DataLoader(dataset, batch_size=34, shuffle=True, num_workers=4, pin_memory=True)
+train_dl = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=4, pin_memory=True)
 #train_dl = DeviceDataLoader(train_ds, device)
 #len(train_dl)
 #test_dl =

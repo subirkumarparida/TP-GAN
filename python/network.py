@@ -37,65 +37,10 @@ random_seed = 42
 torch.manual_seed(random_seed)
 
 
-def get_default_device():
-    """Pick GPU if available, else CPU"""
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')
+from helper_func import *
+
 
 device = get_default_device()
-
-
-def relu():
-    return nn.ReLU()
-
-def lrelu(f=0.2):
-    return nn.LeakyReLU(f)
-
-def tanh():
-    return nn.Tanh()
-
-def batch_norm(ni):
-    return nn.BatchNorm2d(ni)
-
-def conv_2d(ni, nf, ks, stride=2):
-    return nn.Conv2d(in_channels=ni, out_channels=nf, kernel_size=ks, stride=stride, padding=ks // 2, bias=False)
-
-def deconv_2d(ni, nf, ks, stride=2, padding=1, output_padding=1):
-    return nn.ConvTranspose2d(in_channels=ni, out_channels=nf,
-                              kernel_size=ks, stride=stride,
-                              padding=padding, output_padding=output_padding)
-
-def fc_nn(input_size, output_size):
-    return nn.Sequential(nn.Flatten(),
-                         nn.Linear(input_size, output_size)
-                         )
-
-class Flatten(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x):
-        return x.view(x.size(0), -1)
-
-class ResBlock(nn.Module):
-    def __init__(self, ni, ks=3, stride=1):
-        super().__init__()
-        self.conv = conv_2d(ni, ni, ks, stride)
-        self.bn = batch_norm(ni)
-        self.lrelu = lrelu()
-        self.shortcut = lambda x: x
-
-    def forward(self, x):
-        r = self.shortcut(x)
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.lrelu(x)
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.lrelu(x.add_(r))
-        return x
 
 
 class Generator(nn.Module):

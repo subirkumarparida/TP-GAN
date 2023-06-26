@@ -35,18 +35,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 from dataset import *
+from helper_func import *
 
-
-yml_file = "mydata.yml"
-data_dir = "all_data2"
-
-root_dir = '/home/barc/Desktop/subir/Projects/TP-GAN'
-
-images_list = os.path.join(root_dir, yml_file)
-images_dir = os.path.join(root_dir, data_dir)
-
-save_dir = "generated_data"
-images_save_dir = os.path.join(root_dir, save_dir)
 
 dataset = createDataset(images_list, images_dir)
 

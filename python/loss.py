@@ -37,12 +37,8 @@ random_seed = 42
 torch.manual_seed(random_seed)
 
 
-def get_default_device():
-    """Pick GPU if available, else CPU"""
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')
+from helper_func import *
+
 
 device = get_default_device()
 
