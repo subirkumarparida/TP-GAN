@@ -43,11 +43,11 @@ device = get_default_device()
 
 
 dataset = createDataset(images_list, images_dir)
+test_dataset = createDataset(test_images_list, test_images_dir)
 
 train_dl = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=4, pin_memory=True)
-#train_dl = DeviceDataLoader(train_ds, device)
-#len(train_dl)
-#test_dl =
+test_dl = DataLoader(test_dataset, batch_size=bs, shuffle=False, num_workers=4, pin_memory=True) #34
+
 
 G = Generator(num_classes=10)
 to_device(G, device)
@@ -75,27 +75,35 @@ def generate_test_outputs(G, test_dl):
         #pass each batch through the model
         for batch in test_dl:
             #print(each_batch['img128'][0].shape)
-            img1 = torch.permute(batch['img128'][2], (1, 2, 0))
+            img1 = torch.permute(batch['img128'][0], (1, 2, 0))
             img1 = (img1*127)+127.5
             img1 = img1.type(torch.int64)
     
             #Generate predictions
             img128_fake, img64_fake, img32_fake = G(batch['img128'], batch['img64'], batch['img32'])
             
-            img2 = torch.permute(img128_fake[2], (1, 2, 0))
+            img2 = torch.permute(img128_fake[0], (1, 2, 0))
             img2 = (img2*127)+127.5
             img2 = img2.type(torch.int64)
+            
+            img3 = torch.permute(batch['img128_GT'][0], (1, 2, 0))
+            img3 = (img3*127)+127.5
+            img3 = img3.type(torch.int64)
 
-            plt.subplot(1, 2, 1)
+            plt.subplot(1, 3, 1)
             plt.imshow(img1)
             plt.axis('off')
-            plt.title('Id: ' + str(batch['id'][2].item()))
+            plt.title('Id: ' + str(batch['id'][0].item()))
 
-            plt.subplot(1, 2, 2)
+            plt.subplot(1, 3, 2)
             plt.imshow(img2.detach().cpu().numpy())
+            plt.axis('off')
+            
+            plt.subplot(1, 3, 3)
+            plt.imshow(img3)
             plt.axis('off')
 
             plt.show()
             
             
-generate_test_outputs(G, train_dl)
+generate_test_outputs(G, test_dl)

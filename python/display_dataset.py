@@ -39,6 +39,7 @@ from helper_func import *
 
 
 dataset = createDataset(images_list, images_dir)
+test_dataset = createDataset(test_images_list, test_images_dir)
 
 ids = []
 

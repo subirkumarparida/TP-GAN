@@ -48,11 +48,13 @@ device = get_default_device()
 
 
 dataset = createDataset(images_list, images_dir)
+test_dataset = createDataset(test_images_list, test_images_dir)
 
 train_dl = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=4, pin_memory=True)
 #train_dl = DeviceDataLoader(train_ds, device)
 #len(train_dl)
-#test_dl =
+test_dl = DataLoader(test_dataset, batch_size=bs, shuffle=False, num_workers=4, pin_memory=True) #34
+#test_dl = DeviceDataLoader(test_dl, device)
 
 G = Generator(num_classes=10)
 to_device(G, device)
@@ -92,66 +94,69 @@ def train_generator(D, G, loss_G, opt_g, img128_fake, img64_fake, img32_fake, in
 
 
 def fit(epochs, G, D, loss_G, loss_D, train_dl, opt_fn=None, lr=None, lr_func=None):
+    
     torch.cuda.empty_cache()
-
+    
     train_G_losses, train_D_losses = [], []
-
-    # instantiate the optimizer
+    
+    #instantiate the optimizer
     if opt_fn is None: opt_fn = torch.optim.Adam
-    opt_G = opt_fn(G.parameters(), lr=1e-4)
-    opt_D = opt_fn(D.parameters(), lr=1e-4)
-
-    # scheduler_network = torch.optim.lr_scheduler.LambdaLR(optimizer=opt, lr_lambda=lr_func)
-
+    opt_G = opt_fn(G.parameters(), lr = lr)
+    opt_D = opt_fn(D.parameters(), lr = lr)
+    
+    #scheduler_network = torch.optim.lr_scheduler.LambdaLR(optimizer=opt, lr_lambda=lr_func)
+    
     for epoch in range(epochs):
         ep_train_g_losses, ep_train_d_losses, train_len = [], [], []
-
-        # Training
+        
+        #Training
         G.train()
         D.train()
         for batch in tqdm.tqdm(train_dl):
-            # Generate predictions
+            #Generate predictions
             img128_fake, img64_fake, img32_fake = G(batch['img128'], batch['img64'], batch['img32'])
-
+    
             train_d_loss = train_discriminator(D, loss_D, opt_D, img128_fake, batch)
             train_g_loss = train_generator(D, G, loss_G, opt_G, img128_fake, img64_fake, img32_fake, batch)
             len_batch = len(batch)
-
+            
             ep_train_g_losses.append(train_g_loss)
             ep_train_d_losses.append(train_d_loss)
-            train_len.append(len_batch)  # batch_size
-
-        # scheduler_network.step()
-        # scheduler_out.step()
-
+            train_len.append(len_batch) #batch_size
+            
+        #scheduler_network.step()
+        #scheduler_out.step()
+        
         total = np.sum(train_len)
         avg_g_train_loss = np.sum(np.multiply(ep_train_g_losses, train_len)) / total
         avg_d_train_loss = np.sum(np.multiply(ep_train_d_losses, train_len)) / total
+                
+        #Evaluation
+        
 
-        # Evaluation
-
-        # Record the loss
+        #Record the loss
         train_G_losses.append(avg_g_train_loss)
         train_D_losses.append(avg_d_train_loss)
 
-        # Checkpointing the model - saving every 'n' epochs
-        checkpoint_path = "../Checkpoints/model_" + str(epoch + 1) + ".pt"
-
-        if ((epoch) % 5 == 0):
+        #Checkpointing the model - saving every 'n' epochs
+        checkpoint_path = "../Checkpoints/model_" +str(epoch+1)+".pt"
+        
+        if ((epoch)%5 == 0):
             torch.save({
-                'epoch': epoch + 1,
+                'epoch': epoch+1,
                 'G_state_dict': G.state_dict(),
                 'D_state_dict': D.state_dict(),
                 'g_train_loss': avg_g_train_loss,
                 'd_train_loss': avg_d_train_loss,
             }, checkpoint_path)
-
-        # Print progress:
+        
+        
+        #Print progress:
         print('Epoch [{}/{}], Train_G_loss: {:.4f}, Train_D_loss: {:.4f}'
-              .format(epoch + 1, epochs, avg_g_train_loss, avg_d_train_loss))
-
-        save_samples(epoch + 1, G, train_dl, show=False)
-
+              .format(epoch+1, epochs, avg_g_train_loss, avg_d_train_loss))
+        
+        save_samples(epoch+1, G, train_dl, show=False)
+        
     return train_G_losses, train_D_losses
 
 
